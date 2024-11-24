@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "516179892419",
+    "project_id": "taprak-3f096",
+    "storage_bucket": "taprak-3f096.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:516179892419:android:986e23dc1abb77c6c92a76",
+        "android_client_info": {
+          "package_name": "com.example.tugasakhirprak1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVuh8FZTV0lqpnrJirUUhdfat83Ysu8TE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
