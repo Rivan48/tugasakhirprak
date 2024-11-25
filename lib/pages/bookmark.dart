@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:tugasakhirprak1/pages/detail.dart';
 
 class BookmarkPage extends StatelessWidget {
@@ -62,7 +63,7 @@ class BookmarkPage extends StatelessWidget {
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
               final article =
-                  snapshot.data!.docs[index].data() as Map<String, dynamic>;
+              snapshot.data!.docs[index].data() as Map<String, dynamic>;
 
               return Card(
                 color: Colors.grey[850],
@@ -84,11 +85,22 @@ class BookmarkPage extends StatelessWidget {
                           borderRadius: BorderRadius.vertical(
                             top: Radius.circular(4.0),
                           ),
-                          child: Image.network(
-                            article['urlToImage'],
+                          child: CachedNetworkImage(
+                            imageUrl: article['urlToImage'] ?? '',
                             fit: BoxFit.cover,
                             width: double.infinity,
                             height: 200,
+                            placeholder: (context, url) =>
+                                Center(child: CircularProgressIndicator()),
+                            errorWidget: (context, url, error) => Container(
+                              height: 200,
+                              color: Colors.grey[300],
+                              child: Icon(
+                                Icons.error_outline,
+                                color: Colors.grey[500],
+                                size: 50,
+                              ),
+                            ),
                           ),
                         ),
                       Padding(
