@@ -66,15 +66,15 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
 
     final commentCollection = parentCommentId == null
         ? _firestore
-            .collection('articles')
-            .doc(widget.article['title'])
-            .collection('comments')
+        .collection('articles')
+        .doc(widget.article['title'])
+        .collection('comments')
         : _firestore
-            .collection('articles')
-            .doc(widget.article['title'])
-            .collection('comments')
-            .doc(parentCommentId)
-            .collection('replies');
+        .collection('articles')
+        .doc(widget.article['title'])
+        .collection('comments')
+        .doc(parentCommentId)
+        .collection('replies');
 
     await commentCollection.add(commentData);
 
@@ -122,10 +122,9 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
       await launchUrl(
         uri,
         mode:
-            LaunchMode.externalApplication, // Membuka URL di browser eksternal
+        LaunchMode.externalApplication, // Membuka URL di browser eksternal
       );
     } else {
-      print('Could not launch $url');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not launch URL')),
       );
@@ -133,56 +132,116 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
   }
 
   Widget _buildReplies(String commentId) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _firestore
-          .collection('articles')
-          .doc(widget.article['title'])
-          .collection('comments')
-          .doc(commentId)
-          .collection('replies')
-          .orderBy('timestamp', descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator());
-        }
+    final _replyController = TextEditingController();
+    int commentsLimit = 3; // Batas awal jumlah reply yang ditampilkan
 
-        final replies = snapshot.data!.docs;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        StreamBuilder<QuerySnapshot>(
+          stream: _firestore
+              .collection('articles')
+              .doc(widget.article['title'])
+              .collection('comments')
+              .doc(commentId)
+              .collection('replies')
+              .orderBy('timestamp', descending: true)
+              .limit(commentsLimit) // Batas jumlah reply
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return Center(child: CircularProgressIndicator());
+            }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: replies.length,
-          itemBuilder: (context, index) {
-            final reply = replies[index].data() as Map<String, dynamic>;
+            final replies = snapshot.data!.docs;
 
-            return ListTile(
-              title: Row(
-                children: [
-                  Text(
-                    reply['username'] ?? 'Anonymous',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: replies.length,
+                  itemBuilder: (context, index) {
+                    final reply = replies[index].data() as Map<String, dynamic>;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 16.0, top: 8.0), // Indentasi kanan
+                      child: ListTile(
+                        title: Text(
+                          reply['username'] ?? 'Anonymous',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12, // Perkecil ukuran teks
+                            color: Colors.blue,
+                          ),
+                        ),
+                        subtitle: Text(
+                          reply['comment'] ?? '',
+                          style: TextStyle(
+                            fontSize: 12, // Perkecil ukuran teks
+                            color: Colors.grey[300],
+                          ),
+                        ),
+                        trailing: Text(
+                          _formatTimestamp(reply['timestamp']),
+                          style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                if (snapshot.data!.docs.length >= commentsLimit) // Tombol Load More
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        commentsLimit += 3; // Tambah jumlah komentar yang ditampilkan
+                      });
+                    },
+                    child: Text(
+                      "Load More Replies",
+                      style: TextStyle(color: Colors.orange),
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Text(
-                    reply['comment'] ?? '',
-                    style: TextStyle(color: Colors.grey[300]),
-                  ),
-                ],
-              ),
-              subtitle: Text(
-                _formatTimestamp(reply['timestamp']),
-                style: TextStyle(color: Colors.grey[500], fontSize: 12),
-              ),
+              ],
             );
           },
-        );
-      },
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _replyController,
+                decoration: InputDecoration(
+                  hintText: 'Write a reply...',
+                  filled: true,
+                  fillColor: Colors.grey[800],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            SizedBox(width: 8.0),
+            ElevatedButton(
+              onPressed: () {
+                _postComment(_replyController.text, parentCommentId: commentId);
+                _replyController.clear();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+              ),
+              child: Text('Reply'),
+            ),
+          ],
+        ),
+      ],
     );
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -322,41 +381,39 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
                         physics: NeverScrollableScrollPhysics(),
                         itemCount: comments.length,
                         itemBuilder: (context, index) {
-                          final comment =
-                              comments[index].data() as Map<String, dynamic>;
+                          final comment = comments[index].data() as Map<String, dynamic>;
                           final commentId = comments[index].id;
 
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ListTile(
-                                title: Row(
-                                  children: [
-                                    Text(
-                                      comment['username'] ?? 'Anonymous',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.orange,
-                                      ),
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 8.0), // Indentasi kecil untuk komentar utama
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ListTile(
+                                  title: Text(
+                                    comment['username'] ?? 'Anonymous',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14, // Sedikit lebih besar dari reply
+                                      color: Colors.orange,
                                     ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      comment['comment'] ?? '',
-                                      style: TextStyle(color: Colors.grey[300]),
-                                    ),
-                                  ],
+                                  ),
+                                  subtitle: Text(
+                                    comment['comment'] ?? '',
+                                    style: TextStyle(fontSize: 14, color: Colors.grey[300]),
+                                  ),
+                                  trailing: Text(
+                                    _formatTimestamp(comment['timestamp']),
+                                    style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                                  ),
                                 ),
-                                subtitle: Text(
-                                  _formatTimestamp(comment['timestamp']),
-                                  style: TextStyle(
-                                      color: Colors.grey[500], fontSize: 12),
-                                ),
-                              ),
-                              _buildReplies(commentId),
-                            ],
+                                _buildReplies(commentId), // Panggil fungsi replies di sini
+                              ],
+                            ),
                           );
                         },
                       );
+
                     },
                   ),
                   SizedBox(height: 20.0),
