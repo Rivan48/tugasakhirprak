@@ -6,6 +6,7 @@ import 'package:tugasakhirprak1/pages/detail.dart';
 import 'package:tugasakhirprak1/pages/loginPage.dart';
 import 'package:tugasakhirprak1/pages/bookmark.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:cached_network_image/cached_network_image.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -65,37 +66,38 @@ class _HomePageState extends State<HomePage> {
         final data = jsonDecode(response.body);
         final newArticles = List<Map<String, dynamic>>.from(data['articles']);
 
-        setState(() {
-          if (isNewSearch) {
-            _articles = newArticles;
-          } else {
-            _articles.addAll(newArticles);
-          }
+        if (mounted) {
+          setState(() {
+            if (isNewSearch) {
+              _articles = newArticles;
+            } else {
+              _articles.addAll(newArticles);
+            }
 
-          // Check if we have more data to load
-          _hasMoreData = newArticles.length == 10;
+            _hasMoreData = newArticles.length == 10;
 
-          _isLoading = false;
-          _isLoadingMore = false;
-        });
+            _isLoading = false;
+            _isLoadingMore = false;
+          });
+        }
       } else {
-        setState(() {
-          _isLoading = false;
-          _isLoadingMore = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching news')),
-        );
+        _handleError('Error fetching news');
       }
     } catch (e) {
+      _handleError('Network error');
+    }
+  }
+
+  void _handleError(String message) {
+    if (mounted) {
       setState(() {
         _isLoading = false;
         _isLoadingMore = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Network error')),
-      );
     }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   Future<void> _loadMore() async {
@@ -140,269 +142,273 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Column(
         children: [
-          Container(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: _currentCategory == categories[index]
-                          ? Colors.white
-                          : Colors.black87,
-                      backgroundColor: _currentCategory == categories[index]
-                          ? Color(0xFF4CAF50)
-                          : Colors.grey[200],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _currentCategory = categories[index];
-                      });
-                      _fetchNews(categories[index]);
-                    },
-                    child: Text(
-                      categories[index].toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+          _buildCategorySelector(),
           Expanded(
             child: _isLoading
                 ? Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
-                    onRefresh: () async {
-                      await _fetchNews(_currentCategory);
-                    },
-                    child: ListView.builder(
-                      itemCount: _articles.length + 1,
-                      itemBuilder: (context, index) {
-                        if (index == _articles.length) {
-                          if (_isLoadingMore) {
-                            return Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-                          } else if (_hasMoreData) {
-                            return Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Color(0xFF4CAF50),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                  ),
-                                  onPressed: _loadMore,
-                                  child: Text('Load More News'),
-                                ),
-                              ),
-                            );
-                          } else {
-                            return Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Text(
-                                  'No more news available',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                        }
-
-                        final article = _articles[index];
-                        return Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      NewsDetailPage(article: article),
-                                ),
-                              );
-                            },
-                            child: Card(
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (article['urlToImage'] != null)
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.vertical(
-                                        top: Radius.circular(12),
-                                      ),
-                                      child: Image.network(
-                                        article['urlToImage'],
-                                        height: 200,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                          return Container(
-                                            height: 200,
-                                            color: Colors.grey[300],
-                                            child: Icon(
-                                              Icons.error_outline,
-                                              color: Colors.grey[500],
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.newspaper,
-                                              size: 16,
-                                              color: Colors.grey[600],
-                                            ),
-                                            SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                article['source']['name'] ?? '',
-                                                style: TextStyle(
-                                                  color: Colors.grey[600],
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ),
-                                            if (article['publishedAt'] != null)
-                                              Text(
-                                                timeago.format(
-                                                  DateTime.parse(
-                                                    article['publishedAt'],
-                                                  ),
-                                                ),
-                                                style: TextStyle(
-                                                  color: Colors.grey[600],
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          article['title'] ?? '',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          article['description'] ?? '',
-                                          maxLines: 3,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+              onRefresh: () async {
+                await _fetchNews(_currentCategory);
+              },
+              child: ListView.builder(
+                itemCount: _articles.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == _articles.length) {
+                    return _buildLoadMoreButton();
+                  }
+                  return _buildNewsCard(_articles[index]);
+                },
+              ),
+            ),
           ),
         ],
       ),
-      drawer: Drawer(
-        child: ListView(
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color(0xFF4CAF50),
+      drawer: _buildDrawer(context),
+    );
+  }
+
+  Widget _buildCategorySelector() {
+    return Container(
+      height: 50,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                foregroundColor: _currentCategory == categories[index]
+                    ? Colors.white
+                    : Colors.black87,
+                backgroundColor: _currentCategory == categories[index]
+                    ? Color(0xFF4CAF50)
+                    : Colors.grey[200],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.white,
-                    radius: 30,
-                    child: Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Color(0xFF4CAF50),
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'News App',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24.0,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              onPressed: () {
+                setState(() {
+                  _currentCategory = categories[index];
+                });
+                _fetchNews(categories[index]);
+              },
+              child: Text(
+                categories[index].toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            ListTile(
-              leading: Icon(Icons.home),
-              title: Text('Home'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.bookmark),
-              title: Text('Bookmarks'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BookmarkPage(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.logout),
-              title: Text('Logout'),
-              onTap: () => _logout(context),
-            ),
-          ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreButton() {
+    if (_isLoadingMore) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
         ),
+      );
+    } else if (_hasMoreData) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF4CAF50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            onPressed: _loadMore,
+            child: Text('Load More News'),
+          ),
+        ),
+      );
+    } else {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            'No more news available',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildNewsCard(Map<String, dynamic> article) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => NewsDetailPage(article: article),
+            ),
+          );
+        },
+        child: Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (article['urlToImage'] != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                  child: CachedNetworkImage(
+                    imageUrl: article['urlToImage'] ?? '',
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) =>
+                        Center(child: CircularProgressIndicator()),
+                    errorWidget: (context, url, error) => Container(
+                      height: 200,
+                      color: Colors.grey[300],
+                      child: Icon(
+                        Icons.error_outline,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.newspaper,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            article['source']['name'] ?? '',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        if (article['publishedAt'] != null)
+                          Text(
+                            timeago.format(
+                              DateTime.parse(article['publishedAt']),
+                            ),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      article['title'] ?? '',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      article['description'] ?? '',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              color: Color(0xFF4CAF50),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.white,
+                  radius: 30,
+                  child: Icon(
+                    Icons.person,
+                    size: 40,
+                    color: Color(0xFF4CAF50),
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'News App',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24.0,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.home),
+            title: Text('Home'),
+            onTap: () {
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.bookmark),
+            title: Text('Bookmarks'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BookmarkPage(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.logout),
+            title: Text('Logout'),
+            onTap: () => _logout(context),
+          ),
+        ],
       ),
     );
   }
@@ -420,6 +426,7 @@ class NewsSearchDelegate extends SearchDelegate {
         icon: Icon(Icons.clear),
         onPressed: () {
           query = '';
+          showSuggestions(context);
         },
       ),
     ];
@@ -437,15 +444,149 @@ class NewsSearchDelegate extends SearchDelegate {
 
   @override
   Widget buildResults(BuildContext context) {
-    if (query.isNotEmpty) {
-      searchNews(query);
+    if (query.isEmpty) {
+      return Center(
+        child: Text('Enter a search term to find news.'),
+      );
     }
-    close(context, null);
-    return Container();
+
+    return FutureBuilder(
+      future: _searchNews(query),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error: ${snapshot.error}',
+              style: TextStyle(color: Colors.red),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
+          return Center(
+            child: Text(
+              'No results found for "$query".',
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+
+        final articles = snapshot.data as List<Map<String, dynamic>>;
+
+        return ListView.builder(
+          itemCount: articles.length,
+          itemBuilder: (context, index) {
+            final article = articles[index];
+            return ListTile(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NewsDetailPage(article: article),
+                  ),
+                );
+              },
+              title: Text(
+                article['title'] ?? 'No Title',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                article['source']['name'] ?? 'Unknown Source',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              leading: article['urlToImage'] != null
+                  ? CachedNetworkImage(
+                imageUrl: article['urlToImage'],
+                width: 50,
+                height: 50,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => CircularProgressIndicator(),
+                errorWidget: (context, url, error) => Icon(Icons.error),
+              )
+                  : Icon(Icons.broken_image, size: 50, color: Colors.grey),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    return Container();
+    if (query.isEmpty) {
+      return Center(
+        child: Text('Search for news articles.'),
+      );
+    }
+
+    return FutureBuilder(
+      future: _searchNews(query),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error: ${snapshot.error}',
+              style: TextStyle(color: Colors.red),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
+          return Center(
+            child: Text(
+              'No suggestions found for "$query".',
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+
+        final articles = snapshot.data as List<Map<String, dynamic>>;
+
+        return ListView.builder(
+          itemCount: articles.length,
+          itemBuilder: (context, index) {
+            final article = articles[index];
+            return ListTile(
+              onTap: () {
+                query = article['title'];
+                showResults(context);
+              },
+              title: Text(
+                article['title'] ?? 'No Title',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _searchNews(String query) async {
+    final String apiKey = 'abbe40a8f28e4cc0a75f74f5af49b9f5';
+    final String apiUrl = 'https://newsapi.org/v2/everything';
+    final url = Uri.parse('$apiUrl?q=$query&apiKey=$apiKey&pageSize=10');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data['articles']);
+      } else {
+        throw Exception('Failed to fetch results');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
   }
 }
