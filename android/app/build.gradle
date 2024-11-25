@@ -27,6 +27,7 @@ android {
     namespace "com.example.tugasakhirprak1"
     compileSdkVersion flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
+    compileSdkVersion 34
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -43,6 +44,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.tugasakhirprak1"
+        targetSdkVersion 34
         minSdkVersion 23  // Updated to 23 as required by firebase_auth
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()

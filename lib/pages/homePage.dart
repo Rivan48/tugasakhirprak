@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
+import 'package:tugasakhirprak1/pages/provider/language_provider.dart';
 import 'package:tugasakhirprak1/pages/detail.dart';
 import 'package:tugasakhirprak1/pages/loginPage.dart';
 import 'package:tugasakhirprak1/pages/bookmark.dart';
-import 'package:timeago/timeago.dart' as timeago;
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:translator/translator.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -17,7 +19,7 @@ class _HomePageState extends State<HomePage> {
   final _auth = FirebaseAuth.instance;
   final String _apiKey = 'abbe40a8f28e4cc0a75f74f5af49b9f5';
   final String _apiUrl = 'https://newsapi.org/v2/everything';
-
+  final translator = GoogleTranslator();
   List<Map<String, dynamic>> _articles = [];
   bool _isLoading = false;
   bool _isLoadingMore = false;
@@ -107,6 +109,13 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<String> _translate(String text) async {
+    final languageCode =
+        Provider.of<LanguageProvider>(context, listen: false).languageCode;
+    final translation = await translator.translate(text, to: languageCode);
+    return translation.text;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -115,6 +124,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -132,10 +143,25 @@ class _HomePageState extends State<HomePage> {
             onPressed: () {
               showSearch(
                 context: context,
-                delegate: NewsSearchDelegate(
-                  searchNews: _fetchNews,
-                ),
+                delegate: NewsSearchDelegate(searchNews: _fetchNews),
               );
+            },
+          ),
+          PopupMenuButton<String>(
+            onSelected: (String value) {
+              languageProvider.setLanguage(value);
+            },
+            itemBuilder: (BuildContext context) {
+              return [
+                PopupMenuItem(
+                  value: 'en',
+                  child: Text('English'),
+                ),
+                PopupMenuItem(
+                  value: 'id',
+                  child: Text('Bahasa Indonesia'),
+                ),
+              ];
             },
           ),
         ],
@@ -147,19 +173,32 @@ class _HomePageState extends State<HomePage> {
             child: _isLoading
                 ? Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
-              onRefresh: () async {
-                await _fetchNews(_currentCategory);
-              },
-              child: ListView.builder(
-                itemCount: _articles.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == _articles.length) {
-                    return _buildLoadMoreButton();
-                  }
-                  return _buildNewsCard(_articles[index]);
-                },
-              ),
-            ),
+                    onRefresh: () async {
+                      await _fetchNews(_currentCategory);
+                    },
+                    child: ListView.builder(
+                      itemCount: _articles.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == _articles.length) {
+                          return _buildLoadMoreButton();
+                        }
+                        return FutureBuilder<String>(
+                          future: _translate(_articles[index]['title'] ?? ''),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return Center(child: CircularProgressIndicator());
+                            }
+
+                            return _buildNewsCard(
+                              _articles[index],
+                              translatedTitle: snapshot.data ?? '',
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -208,6 +247,61 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildNewsCard(Map<String, dynamic> article,
+      {String translatedTitle = ''}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => NewsDetailPage(article: article),
+            ),
+          );
+        },
+        child: Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (article['urlToImage'] != null)
+                CachedNetworkImage(
+                  imageUrl: article['urlToImage'],
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => Container(
+                    height: 200,
+                    color: Colors.grey[300],
+                    child: Icon(
+                      Icons.error_outline,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  translatedTitle.isEmpty ? article['title'] : translatedTitle,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoadMoreButton() {
     if (_isLoadingMore) {
       return Center(
@@ -246,108 +340,6 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
-  }
-
-  Widget _buildNewsCard(Map<String, dynamic> article) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => NewsDetailPage(article: article),
-            ),
-          );
-        },
-        child: Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (article['urlToImage'] != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                  child: CachedNetworkImage(
-                    imageUrl: article['urlToImage'] ?? '',
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) =>
-                        Center(child: CircularProgressIndicator()),
-                    errorWidget: (context, url, error) => Container(
-                      height: 200,
-                      color: Colors.grey[300],
-                      child: Icon(
-                        Icons.error_outline,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.newspaper,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            article['source']['name'] ?? '',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        if (article['publishedAt'] != null)
-                          Text(
-                            timeago.format(
-                              DateTime.parse(article['publishedAt']),
-                            ),
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
-                          ),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      article['title'] ?? '',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      article['description'] ?? '',
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildDrawer(BuildContext context) {
@@ -501,13 +493,14 @@ class NewsSearchDelegate extends SearchDelegate {
               ),
               leading: article['urlToImage'] != null
                   ? CachedNetworkImage(
-                imageUrl: article['urlToImage'],
-                width: 50,
-                height: 50,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => CircularProgressIndicator(),
-                errorWidget: (context, url, error) => Icon(Icons.error),
-              )
+                      imageUrl: article['urlToImage'],
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          CircularProgressIndicator(),
+                      errorWidget: (context, url, error) => Icon(Icons.error),
+                    )
                   : Icon(Icons.broken_image, size: 50, color: Colors.grey),
             );
           },
