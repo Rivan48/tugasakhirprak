@@ -22,7 +22,8 @@ dependencies:
   translator: ^1.0.3+1
   url_launcher: ^6.1.10
   webview_flutter: ^4.10.0
-
+  awesome_notifications: ^0.8.2
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_lints: ^5.0.0
@@ -30,4 +31,7 @@ dev_dependencies:
     sdk: flutter
 
 flutter:
+  assets:
+    - assets/logo.png
+
   uses-material-design: true

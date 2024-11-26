@@ -17,7 +17,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _auth = FirebaseAuth.instance;
-  final String _apiKey = '48f18fea23ad4a8aab46d41fce62102d';
+  final String _apiKey = '3f1e827e93504b81ac664c766f7a3817';
   final String _apiUrl = 'https://newsapi.org/v2/everything';
   final translator = GoogleTranslator();
   List<Map<String, dynamic>> _articles = [];

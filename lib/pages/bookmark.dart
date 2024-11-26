@@ -13,7 +13,7 @@ class BookmarkPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Bookmarked News'),
-        backgroundColor: Colors.grey[900],
+        backgroundColor: Color(0xFF4CAF50),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
@@ -63,10 +63,10 @@ class BookmarkPage extends StatelessWidget {
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
               final article =
-              snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                  snapshot.data!.docs[index].data() as Map<String, dynamic>;
 
               return Card(
-                color: Colors.grey[850],
+                color: Color(0xFF4CAF50),
                 margin: EdgeInsets.only(bottom: 16.0),
                 child: InkWell(
                   onTap: () {
@@ -94,10 +94,10 @@ class BookmarkPage extends StatelessWidget {
                                 Center(child: CircularProgressIndicator()),
                             errorWidget: (context, url, error) => Container(
                               height: 200,
-                              color: Colors.grey[300],
+                              color: Colors.black,
                               child: Icon(
                                 Icons.error_outline,
-                                color: Colors.grey[500],
+                                color: Colors.black,
                                 size: 50,
                               ),
                             ),
@@ -113,7 +113,7 @@ class BookmarkPage extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 18.0,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.orange,
+                                color: Colors.black,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -127,7 +127,7 @@ class BookmarkPage extends StatelessWidget {
                                     'Source: ${article['source']['name']}',
                                     style: TextStyle(
                                       fontSize: 14.0,
-                                      color: Colors.grey[400],
+                                      color: Colors.black45,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -135,7 +135,7 @@ class BookmarkPage extends StatelessWidget {
                                 IconButton(
                                   icon: Icon(
                                     Icons.bookmark_remove,
-                                    color: Colors.orange,
+                                    color: Colors.black,
                                   ),
                                   onPressed: () async {
                                     await _firestore
